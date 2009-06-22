@@ -28,8 +28,18 @@
 
 #ifdef Sun
   #include "unistd.h"
-  #include <termio.h>
   #include "minmax.c"
+  #ifdef TERMIOS
+    #include <termios.h>
+    #define TERMIO struct termios
+    #define GTTY(fd, tadr)  tcgetattr(fd, tadr)
+    #define STTY(fd, tadr)  tcsetattr(fd, TCSADRAIN, tadr)
+  #else
+    #include <termio.h>
+    #define TERMIO struct termio
+    #define GTTY(fd, tadr) ioctl(fd, TCGETA,  tadr)
+    #define STTY(fd, tadr) ioctl(fd, TCSETAW, tadr)
+  #endif
 #endif
 
 #ifndef Sun
@@ -89,8 +99,8 @@ void FreeDsspMem (void) {  // free DSSP Memory
 /******     MAIN PROGRAM for DSSP-INTERPRETATION   *******/
 /*********************************************************/
 
-#ifdef Sun
-        static struct termio tt, tt_for_vost;
+#ifdef Sun  
+    static TERMIO trm, trm_for_vost;
 #endif
 
 int main(int argc,char *argv[])
@@ -106,12 +116,12 @@ int main(int argc,char *argv[])
 
 
 #ifdef Sun
-        ioctl(fileno(stdin), TCGETA, &tt);
-        tt_for_vost = tt;
-        tt.c_lflag &= ~ICANON;
-        //tt.c_lflag &= ~ECHO;
-        tt.c_cc[VMIN] = 1;
-        ioctl(fileno(stdin), TCSETA, &tt);
+        GTTY(fileno(stdin), &trm);
+        trm_for_vost = trm;
+        trm.c_lflag &= ~ICANON;
+        //trm.c_lflag &= ~ECHO;
+        trm.c_cc[VMIN] = 1;
+        STTY(fileno(stdin), &trm);
 #endif
 
         if (argc==1)
@@ -177,7 +187,7 @@ int main(int argc,char *argv[])
                 FreeDsspMem();
         }
 #ifdef Sun
-        ioctl(fileno(stdin), TCSETA, &tt_for_vost);
+        STTY(fileno(stdin), &trm_for_vost);
 #endif
         return  0 ;
 }
